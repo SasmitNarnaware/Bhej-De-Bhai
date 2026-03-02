@@ -2,16 +2,15 @@ import React from 'react';
 import { useState } from 'react';
 import { X, UploadCloud, AlertCircle } from 'lucide-react';
 import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../firebase';
-
+import { db, storage, auth, provider } from '../firebase';
+import { signInWithPopup, signOut } from 'firebase/auth';
 function UploadModal({ onClose }) {
+    const [user, setUser] = useState(auth.currentUser);
     const [formData, setFormData] = useState({
         subjectName: '',
         moduleName: '',
-        luNumber: '',
-        addedBy: ''
+        luNumber: ''
     });
 
     const [payloads, setPayloads] = useState([
@@ -33,6 +32,27 @@ function UploadModal({ onClose }) {
 
     const updatePayload = (id, field, value) => {
         setPayloads(payloads.map(p => p.id === id ? { ...p, [field]: value } : p));
+    };
+
+    const handleLogin = async () => {
+        try {
+            setLoading(true);
+            const result = await signInWithPopup(auth, provider);
+            setUser(result.user);
+        } catch (error) {
+            setError(error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+            setUser(null);
+        } catch (error) {
+            setError(error.message);
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -88,7 +108,8 @@ function UploadModal({ onClose }) {
                 payloads: finalPayloads, // Changed schema to support array
                 subjectName: formData.subjectName.toLowerCase(),
                 moduleName: formData.moduleName.toLowerCase(),
-                timestamp: new Date()
+                timestamp: new Date(),
+                addedBy: user.displayName || user.email || 'Anonymous'
             });
 
             console.log("Uploaded Payloads:", finalPayloads);
@@ -119,147 +140,154 @@ function UploadModal({ onClose }) {
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <div>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Uploader Name</label>
-                        <input
-                            type="text"
-                            className="input"
-                            required
-                            placeholder="e.g. John Doe"
-                            value={formData.addedBy}
-                            onChange={(e) => setFormData({ ...formData, addedBy: e.target.value })}
-                        />
+                {!user ? (
+                    <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+                        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+                            You must be authenticated to transmit payloads to the network.
+                        </p>
+                        <button onClick={handleLogin} className="btn btn-primary" disabled={loading}>
+                            {loading ? 'Authenticating...' : 'Sign in with Google'}
+                        </button>
                     </div>
+                ) : (
+                    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <div style={{ padding: '0.5rem 1rem', backgroundColor: 'var(--surface-color-light)', borderRadius: 'var(--border-radius)', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                Authenticated as: <strong style={{ color: 'var(--text-primary)' }}>{user.displayName || user.email}</strong>
+                            </div>
+                            <button type="button" onClick={handleLogout} className="btn btn-ghost" style={{ padding: '0.2rem 0.5rem', fontSize: '0.85rem', color: 'var(--error-color)' }}>
+                                Sign Out
+                            </button>
+                        </div>
 
-                    <div>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Subject Name</label>
-                        <input
-                            type="text"
-                            className="input"
-                            required
-                            placeholder="e.g. Data Structures"
-                            value={formData.subjectName}
-                            onChange={(e) => setFormData({ ...formData, subjectName: e.target.value })}
-                        />
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '1rem' }}>
-                        <div style={{ flex: 1 }}>
-                            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Module Name</label>
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Subject Name</label>
                             <input
                                 type="text"
                                 className="input"
                                 required
-                                placeholder="e.g. Trees"
-                                value={formData.moduleName}
-                                onChange={(e) => setFormData({ ...formData, moduleName: e.target.value })}
+                                placeholder="e.g. Data Structures"
+                                value={formData.subjectName}
+                                onChange={(e) => setFormData({ ...formData, subjectName: e.target.value })}
                             />
                         </div>
-                        <div style={{ width: '120px' }}>
-                            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>LU Number</label>
-                            <input
-                                type="number"
-                                step="0.1"
-                                className="input"
-                                required
-                                placeholder="1.1"
-                                value={formData.luNumber}
-                                onChange={(e) => setFormData({ ...formData, luNumber: e.target.value })}
-                            />
+
+                        <div style={{ display: 'flex', gap: '1rem' }}>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Module Name</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    required
+                                    placeholder="e.g. Trees"
+                                    value={formData.moduleName}
+                                    onChange={(e) => setFormData({ ...formData, moduleName: e.target.value })}
+                                />
+                            </div>
+                            <div style={{ width: '120px' }}>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>LU Number</label>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    className="input"
+                                    required
+                                    placeholder="1.1"
+                                    value={formData.luNumber}
+                                    onChange={(e) => setFormData({ ...formData, luNumber: e.target.value })}
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Payloads List */}
-                    <div style={{ padding: '1rem', backgroundColor: 'var(--surface-color-light)', borderRadius: 'var(--border-radius)', border: '1px solid var(--border-color)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                            <label style={{ display: 'block', color: 'var(--text-secondary)', margin: 0 }}>Payload Content ({payloads.length}/4)</label>
-                            {payloads.length < 4 && (
-                                <button type="button" onClick={handleAddPayload} className="btn btn-ghost" style={{ padding: '0.2rem 0.5rem', fontSize: '0.85rem' }}>
-                                    + Add Item
-                                </button>
-                            )}
-                        </div>
+                        {/* Payloads List */}
+                        <div style={{ padding: '1rem', backgroundColor: 'var(--surface-color-light)', borderRadius: 'var(--border-radius)', border: '1px solid var(--border-color)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <label style={{ display: 'block', color: 'var(--text-secondary)', margin: 0 }}>Payload Content ({payloads.length}/4)</label>
+                                {payloads.length < 4 && (
+                                    <button type="button" onClick={handleAddPayload} className="btn btn-ghost" style={{ padding: '0.2rem 0.5rem', fontSize: '0.85rem' }}>
+                                        + Add Item
+                                    </button>
+                                )}
+                            </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                            {payloads.map((payload, index) => (
-                                <div key={payload.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingLeft: '1rem', borderLeft: '2px solid var(--primary-color)', position: 'relative' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                {payloads.map((payload, index) => (
+                                    <div key={payload.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingLeft: '1rem', borderLeft: '2px solid var(--primary-color)', position: 'relative' }}>
 
-                                    {payloads.length > 1 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => handleRemovePayload(payload.id)}
-                                            style={{ position: 'absolute', top: 0, right: 0, background: 'none', border: 'none', color: 'var(--error-color)', cursor: 'pointer', padding: '0.2rem' }}
-                                        >
-                                            <X size={16} />
-                                        </button>
-                                    )}
-
-                                    <div style={{ display: 'flex', gap: '1rem' }}>
-                                        <div style={{ width: '150px' }}>
-                                            <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.2rem', color: 'var(--text-secondary)' }}>Type</label>
-                                            <select
-                                                className="input"
-                                                value={payload.type}
-                                                onChange={(e) => updatePayload(payload.id, 'type', e.target.value)}
+                                        {payloads.length > 1 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemovePayload(payload.id)}
+                                                style={{ position: 'absolute', top: 0, right: 0, background: 'none', border: 'none', color: 'var(--error-color)', cursor: 'pointer', padding: '0.2rem' }}
                                             >
-                                                <option value="url">Link</option>
-                                                <option value="code">Code Snippet</option>
-                                                <option value="text">Raw Text</option>
-                                                <option value="file">Upload File</option>
-                                            </select>
-                                        </div>
+                                                <X size={16} />
+                                            </button>
+                                        )}
 
-                                        <div style={{ flex: 1 }}>
-                                            <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.2rem', color: 'var(--text-secondary)' }}>
-                                                {payload.type === 'file' ? 'Select File' : 'Source'}
-                                            </label>
-
-                                            {payload.type === 'url' && (
-                                                <input
-                                                    type="url"
+                                        <div style={{ display: 'flex', gap: '1rem' }}>
+                                            <div style={{ width: '150px' }}>
+                                                <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.2rem', color: 'var(--text-secondary)' }}>Type</label>
+                                                <select
                                                     className="input"
-                                                    required
-                                                    placeholder="https://..."
-                                                    value={payload.source}
-                                                    onChange={(e) => updatePayload(payload.id, 'source', e.target.value)}
-                                                />
-                                            )}
+                                                    value={payload.type}
+                                                    onChange={(e) => updatePayload(payload.id, 'type', e.target.value)}
+                                                >
+                                                    <option value="url">Link</option>
+                                                    <option value="code">Code Snippet</option>
+                                                    <option value="text">Raw Text</option>
+                                                    <option value="file">Upload File</option>
+                                                </select>
+                                            </div>
 
-                                            {(payload.type === 'text' || payload.type === 'code') && (
-                                                <textarea
-                                                    className="input"
-                                                    rows="2"
-                                                    required
-                                                    placeholder={payload.type === 'code' ? 'Code...' : 'Text...'}
-                                                    value={payload.source}
-                                                    onChange={(e) => updatePayload(payload.id, 'source', e.target.value)}
-                                                    style={{ resize: 'vertical' }}
-                                                />
-                                            )}
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.2rem', color: 'var(--text-secondary)' }}>
+                                                    {payload.type === 'file' ? 'Select File' : 'Source'}
+                                                </label>
 
-                                            {payload.type === 'file' && (
-                                                <input
-                                                    type="file"
-                                                    className="input"
-                                                    required={!payload.file}
-                                                    accept=".pdf,.zip,.ip,.rar,application/pdf,application/zip"
-                                                    onChange={(e) => updatePayload(payload.id, 'file', e.target.files[0])}
-                                                    style={{ padding: '0.4rem' }}
-                                                />
-                                            )}
+                                                {payload.type === 'url' && (
+                                                    <input
+                                                        type="url"
+                                                        className="input"
+                                                        required
+                                                        placeholder="https://..."
+                                                        value={payload.source}
+                                                        onChange={(e) => updatePayload(payload.id, 'source', e.target.value)}
+                                                    />
+                                                )}
+
+                                                {(payload.type === 'text' || payload.type === 'code') && (
+                                                    <textarea
+                                                        className="input"
+                                                        rows="2"
+                                                        required
+                                                        placeholder={payload.type === 'code' ? 'Code...' : 'Text...'}
+                                                        value={payload.source}
+                                                        onChange={(e) => updatePayload(payload.id, 'source', e.target.value)}
+                                                        style={{ resize: 'vertical' }}
+                                                    />
+                                                )}
+
+                                                {payload.type === 'file' && (
+                                                    <input
+                                                        type="file"
+                                                        className="input"
+                                                        required={!payload.file}
+                                                        accept=".pdf,.zip,.ip,.rar,application/pdf,application/zip"
+                                                        onChange={(e) => updatePayload(payload.id, 'file', e.target.files[0])}
+                                                        style={{ padding: '0.4rem' }}
+                                                    />
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
-                    </div>
 
-                    <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem', width: '100%' }} disabled={loading}>
-                        {loading ? 'Processing...' : 'Deploy to Network'}
-                    </button>
-                </form>
-
+                        <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem', width: '100%' }} disabled={loading}>
+                            {loading ? 'Processing...' : 'Deploy to Network'}
+                        </button>
+                    </form>
+                )}
             </div>
         </div>
     );
