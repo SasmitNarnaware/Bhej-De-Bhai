@@ -7,7 +7,7 @@ import 'prismjs/components/prism-c';
 import 'prismjs/components/prism-cpp';
 import 'prismjs/components/prism-c';
 import 'prismjs/components/prism-cpp';
-import { Copy, Check, ExternalLink, Download, FileText } from 'lucide-react';
+import { Copy, Check, ExternalLink, Download, FileText, User } from 'lucide-react';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../firebase';
 
@@ -70,7 +70,8 @@ function DevView({ searchQuery }) {
                             luNumber: docData.luNumber,
                             contentType: p.contentType,
                             contentSource: p.contentSource,
-                            timestamp: docData.timestamp
+                            timestamp: docData.timestamp,
+                            addedBy: docData.addedBy
                         });
                     });
                 } else if (docData.contentSource) {
@@ -146,7 +147,7 @@ function DevView({ searchQuery }) {
 
     return (
         <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '1.5rem' }}>
                 {filteredUploads.length === 0 ? (
                     <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                         <FileText size={48} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
@@ -162,14 +163,28 @@ function DevView({ searchQuery }) {
                             onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = 'var(--primary-color)'; }}
                             onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }}
                         >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                                <div>
-                                    <h3 style={{ textTransform: 'capitalize', marginBottom: '0.25rem' }}>{item.subjectName}</h3>
-                                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', textTransform: 'capitalize' }}>
-                                        Module: {item.moduleName}
-                                    </div>
+                            <div style={{ paddingRight: '4rem', marginBottom: '1rem' }}>
+                                <h3 style={{ textTransform: 'capitalize', marginBottom: '0.25rem' }}>{item.subjectName}</h3>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', textTransform: 'capitalize' }}>
+                                    Module: {item.moduleName}
                                 </div>
-                                <div className="badge">LU {item.luNumber}</div>
+                            </div>
+                            <div className="badge" style={{
+                                position: 'absolute',
+                                top: '1rem',
+                                right: '1rem',
+                                width: '50px',
+                                height: '50px',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                lineHeight: '1.2',
+                                padding: 0
+                            }}>
+                                <span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>LU</span>
+                                <span style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>{item.luNumber}</span>
                             </div>
 
                             <div style={{ flex: 1, maxHeight: '200px', overflow: 'hidden', position: 'relative' }}>
@@ -177,8 +192,13 @@ function DevView({ searchQuery }) {
                                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '40px', background: 'linear-gradient(transparent, var(--surface-color))', pointerEvents: 'none' }} />
                             </div>
 
-                            <div style={{ textAlign: 'center', padding: '0.5rem 0', color: 'var(--primary-color)', fontSize: '0.85rem', fontWeight: 600, opacity: 0.8 }}>
-                                Click to expand payload
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 0 0', marginTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                    <User size={16} /> <span style={{ textTransform: 'capitalize' }}>{item.addedBy || 'Anonymous'}</span>
+                                </div>
+                                <div style={{ color: 'var(--primary-color)', fontSize: '0.85rem', fontWeight: 600, opacity: 0.9 }}>
+                                    Expand for details &rarr;
+                                </div>
                             </div>
                         </div>
                     ))
@@ -205,7 +225,20 @@ function DevView({ searchQuery }) {
                                     Module: {expandedItem.moduleName}
                                 </div>
                             </div>
-                            <div className="badge" style={{ fontSize: '1.2rem', padding: '0.5rem 1rem' }}>LU {expandedItem.luNumber}</div>
+                            <div className="badge" style={{
+                                width: '64px',
+                                height: '64px',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                lineHeight: '1.2',
+                                padding: 0
+                            }}>
+                                <span style={{ fontSize: '0.8rem', textTransform: 'uppercase' }}>LU</span>
+                                <span style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{expandedItem.luNumber}</span>
+                            </div>
                         </div>
 
                         <div style={{ overflowY: 'auto', flex: 1 }}>

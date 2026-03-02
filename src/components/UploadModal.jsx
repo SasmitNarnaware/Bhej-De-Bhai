@@ -10,7 +10,8 @@ function UploadModal({ onClose }) {
     const [formData, setFormData] = useState({
         subjectName: '',
         moduleName: '',
-        luNumber: ''
+        luNumber: '',
+        addedBy: ''
     });
 
     const [payloads, setPayloads] = useState([
@@ -119,6 +120,18 @@ function UploadModal({ onClose }) {
                 )}
 
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Uploader Name</label>
+                        <input
+                            type="text"
+                            className="input"
+                            required
+                            placeholder="e.g. John Doe"
+                            value={formData.addedBy}
+                            onChange={(e) => setFormData({ ...formData, addedBy: e.target.value })}
+                        />
+                    </div>
+
                     <div>
                         <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Subject Name</label>
                         <input
